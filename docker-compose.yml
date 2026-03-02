@@ -1,0 +1,51 @@
+name: gestao-sisu-app
+
+services:
+
+  postgres:
+    container_name: gestao-sisu-postgres
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    volumes:
+      - ./postgres/postgres_data:/var/lib/postgresql/data/pgdata
+      - ./postgres/initdb:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${SISU_DB_USER}
+      POSTGRES_PASSWORD: ${SISU_DB_PASS}
+      POSTGRES_DB: ${SISU_DB_NAME}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    restart: always
+
+  php-fpm:
+    container_name: gestao-sisu-php-fpm
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    volumes:
+      - ./app:/app
+    environment:
+      SISU_DB_USER: ${SISU_DB_USER}
+      SISU_DB_PASS: ${SISU_DB_PASS}
+      SISU_DB_NAME: ${SISU_DB_NAME}
+    command: bash -c "composer install && php-fpm"
+    restart: always
+
+  nginx:
+    container_name: gestao-sisu-nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    depends_on:
+      - php-fpm
+    volumes:
+      - ./nginx/static-html-directory:/usr/share/nginx/html
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./app/public:/app/public
+    ports:
+      - "80:80"
+    restart: always
